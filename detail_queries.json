@@ -1,0 +1,8 @@
+{
+    "Characters": "Who are the main characters in '{book_name}' by {author}?",
+    "Historical&Cultural Era": "In which historical era and cultural context is '{book_name}' by {author} set?",
+    "Key Theme": "What are the key themes in '{book_name}' by {author}?",
+    "Literary Devices": "What literary devices are used in '{book_name}' by {author}?",
+    "Narrative Style": "What is the narrative style of '{book_name}' by {author}?",
+    "Symbols": "What symbols are present in '{book_name}' by {author}?"
+}
