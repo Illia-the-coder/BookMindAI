@@ -3,7 +3,7 @@ import os
 import requests
 import json
 import markdown
-from bardapi import BardAsync
+from bardapi import BardAsync,Bard
 from telegraph import Telegraph
 import time
 # Set up the Telegraph client
@@ -48,18 +48,10 @@ def post_to_telegraph(title, content):
     )
     return 'https://telegra.ph/{}'.format(response['path'])
 
+
+
 async def generate_predictions(book_name, author, language_choice, detail_options=[]):
     bard = BardAsync(token=token, language=language_choice[3:].lower())
-    session = requests.Session()
-    session.headers = {
-        "Host": "bard.google.com",
-        "X-Same-Domain": "1",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-        "Origin": "https://bard.google.com",
-        "Referer": "https://bard.google.com/",
-    }
-    session.cookies.set("__Secure-1PSID", os.getenv("_BARD_API_KEY"))
     image_links = await fetch_book_cover(bard,book_name, author, language_choice)
     
     details = ""
@@ -88,33 +80,54 @@ async def generate_predictions(book_name, author, language_choice, detail_option
     return image_links, combined_summary, telegraph_url
 
 with gr.Blocks(title="📚 BookMindAI", theme=gr.themes.Base()).queue() as demo:
+    with gr.Tab("Summarize book🎯"):
+        with gr.Row():
+            with gr.Column():
+                book_name_input = gr.Textbox(placeholder="Enter Book Name", label="Book Name")
+                author_name_input = gr.Textbox(placeholder="Enter Author Name", label="Author Name")
+                language_input = gr.Dropdown(choices=languages, label="Language")
+                detail_options_input = gr.CheckboxGroup(choices=list(detail_queries.keys()), label="Details to Include", visible=True)
+                run_button = gr.Button(label="Run", visible=True)
     
     
-    with gr.Row():
-        with gr.Column():
-            book_name_input = gr.Textbox(placeholder="Enter Book Name", label="Book Name")
-            author_name_input = gr.Textbox(placeholder="Enter Author Name", label="Author Name")
-            language_input = gr.Dropdown(choices=languages, label="Language")
-            detail_options_input = gr.CheckboxGroup(choices=list(detail_queries.keys()), label="Details to Include", visible=True)
-            run_button = gr.Button(label="Run", visible=True)
+            with gr.Column():
+                book_cover_output = gr.Gallery(label="Book Cover", visible=True)
+                telegraph_link_output = gr.Markdown(label="View on Telegraph", visible=True)
+        with gr.Row():
+            summary_output = gr.Markdown(label="Parsed Content", visible=True)
+        
+        
+    
+        run_button.click(fn=generate_predictions,
+                         inputs=[book_name_input, author_name_input, language_input, detail_options_input],
+                         outputs=[book_cover_output, summary_output, telegraph_link_output],
+                         show_progress=True, queue=True)
+    
+        
+        
+    
+        # Adding examples to the interface
+        examples = [
+            ["Harry Potter and the Philosopher's Stone", "J.K. Rowling", "🇬🇧 english"],
+            ["Pride and Prejudice", "Jane Austen", "🇺🇦 ukrainian"],
+            ["The Great Gatsby", "F. Scott Fitzgerald", "🇫🇷 french"]
+        ]
+        gr.Examples(examples=examples, inputs=[book_name_input, author_name_input, language_input, detail_options_input])
+    with gr.Tab("Talk about book🎓"):
+  
+        async def chat_response(message, history):
+            for i in range(len(message)):
+                response = await bard.get_answer(message)
+                yield response['content']
 
-        with gr.Column():
-            book_cover_output = gr.Gallery(label="Book Cover", visible=True)
-            telegraph_link_output = gr.Markdown(label="View on Telegraph", visible=True)
-    with gr.Row():
-        summary_output = gr.Markdown(label="Parsed Content", visible=True)
+        examples = [
+            "How do the underlying themes of a book reflect the societal values and beliefs of its time?",
+            "In what ways do the characters' personal journeys mirror the broader human experience?",
+            "How does the author's use of symbolism and allegory provide insight into the deeper truths of our existence?",
+            "To what extent does the narrative structure of the book challenge or reinforce our understanding of reality?"
+        ]
 
-    run_button.click(fn=generate_predictions,
-                     inputs=[book_name_input, author_name_input, language_input, detail_options_input],
-                     outputs=[book_cover_output, summary_output, telegraph_link_output],
-                     show_progress=True, queue=True)
-
-    # Adding examples to the interface
-    examples = [
-        ["Harry Potter and the Philosopher's Stone", "J.K. Rowling", "🇬🇧 english"],
-        ["Pride and Prejudice", "Jane Austen", "🇺🇦 ukrainian"],
-        ["The Great Gatsby", "F. Scott Fitzgerald", "🇫🇷 french"]
-    ]
-    gr.Examples(examples=examples, inputs=[book_name_input, author_name_input, language_input, detail_options_input])
+        chat_interface = gr.ChatInterface(chat_response, examples=examples, title ='Talk with Palm 2 about any book.')
+ 
 
 demo.launch(share=False)
